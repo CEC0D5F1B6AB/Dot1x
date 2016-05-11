@@ -42,7 +42,7 @@
 
 int usage(const char *progname)
 {
-	fprintf(stderr, "Dot1x 1.1 (%s) By Tuber\n\n"
+	fprintf(stderr, "Dot1x 1.1 By Tuber\n\n"
 			"Usage: %s <options>\n"
 			"\n"
 			"Options:\n"
@@ -51,7 +51,6 @@ int usage(const char *progname)
 			"\t-i <ifname>\n"
 			"\t-b <background>\n"
 			"\n",
-		BUILD_DATE,
 		progname);
 	return(-1);
 }
@@ -60,8 +59,8 @@ int main(int argc, char *argv[]){
 	int ch, background = 0;
 	setbuf(stdout,NULL);
 	
-	openlog("Dot1x", LOG_PID, LOG_AUTH); 
-	
+	openlog("Dot1x", 0, LOG_AUTH); 
+
 	if(getuid() != 0){
         fprintf(stderr, "Check Need Root Power.\n");
         exit(-1);

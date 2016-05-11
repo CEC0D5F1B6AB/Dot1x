@@ -1,6 +1,15 @@
-CC = "gcc"
+# build helloworld executable when user executes "make"
+all: dot1x
+		
+dot1x: main.o
+	$(CC) $(LDFLAGS) main.o -o dot1x
+        
+rc4.o: rc4.c
+	$(CC) $(CFLAGS) -c rc4.c
 
-dot1x: 
-	$(CC) $(LDFLAGS) main.c -o dot1x -DBUILD_DATE="\"`date '+%Y-%m-%d %H:%M:%S'`"\"
+main.o: main.c
+	$(CC) $(CFLAGS) -c main.c 
+        
+# remove object files and executable when user executes "make clean"
 clean:
-	rm dot1x
+	rm *.o *.gch dot1x

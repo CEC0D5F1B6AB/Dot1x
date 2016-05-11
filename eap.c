@@ -48,7 +48,10 @@ int send_eth(unsigned short int proto, unsigned short int len){
 	eth->proto = htons(proto);
 	t = send(sockfd, buf, t, 0);
 	if(t < 0){
-		writelog(LOG_ERR, "send: %s\n", strerror(errno));
+		writelog(LOG_INFO, "send: %s\n", strerror(errno));
+		sockfd = eap_init();
+		status = EAP_FAILURE;
+		writelog(LOG_INFO, "Reinit the socket\n");
 	}
 	return(t);
 }
@@ -140,7 +143,7 @@ void e_stop(int signo){
 int eap_init(){
 	sockfd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_PAE));
 	if (sockfd < 0){
-		writelog(LOG_ERR, "socket: %s\n", strerror(errno));
+		writelog(LOG_INFO, "socket: %s\n", strerror(errno));
 		return(-1);
 	}
 	//socket
@@ -148,7 +151,7 @@ int eap_init(){
 	bzero(&ifr, sizeof(struct ifreq));
 	strcpy(ifr.ifr_name, interface);
 	if(ioctl(sockfd, SIOCGIFINDEX, &ifr) < 0){
-		writelog(LOG_ERR, "ioctl: %s\n", strerror(errno));
+		writelog(LOG_INFO, "ioctl: %s\n", strerror(errno));
 		return(-1);
 	}
 	struct sockaddr_ll addr;
@@ -156,19 +159,19 @@ int eap_init(){
 	addr.sll_family = AF_PACKET;
 	addr.sll_ifindex = ifr.ifr_ifindex;
 	if (bind(sockfd, (struct sockaddr*)&addr, sizeof(struct sockaddr_ll)) < 0){
-		writelog(LOG_ERR, "bind: %s\n", strerror(errno));
+		writelog(LOG_INFO, "bind: %s\n", strerror(errno));
 		return(-1);
 	}
 	//bind
 	struct timeval timeout={TIMEOUT,0};
 	if(setsockopt(sockfd,SOL_SOCKET,SO_RCVTIMEO,&timeout,sizeof(timeout)) !=0){
-		writelog(LOG_ERR, "setsockopt: %s\n", strerror(errno));
+		writelog(LOG_INFO, "setsockopt: %s\n", strerror(errno));
 		return(-1);
 	}
 	//timeout
 	int size = sizeof(struct sockaddr_ll);
 	if (getsockname(sockfd, (struct sockaddr *)&addr, &size) < 0){
-		writelog(LOG_ERR, "getsockname: %s\n", strerror(errno));
+		writelog(LOG_INFO, "getsockname: %s\n", strerror(errno));
 		return(-1);
 	}
 	memcpy(src_addr, addr.sll_addr, addr.sll_halen);
@@ -190,7 +193,7 @@ int get_netlink_status(){
 	strcpy(ifr.ifr_name, interface);
 	ifr.ifr_data = (char *)&edata;
 	if(ioctl(sockfd, SIOCETHTOOL, &ifr) < 0){
-		writelog(LOG_ERR, "ioctl: %s\n", strerror(errno));
+		writelog(LOG_INFO, "ioctl: %s\n", strerror(errno));
 		return(0);
 	}
 	return(edata.data);
@@ -227,22 +230,23 @@ int eap_auth(){
 										eap_md5();
 										break;
 									default:
-										writelog(LOG_WARNING, "Unknow eap type: %d\n", eap->type);
+										writelog(LOG_INFO, "Unknow eap type: %d\n", eap->type);
 										break;
 								}
 								break;
 							case EAP_SUCCESS:
 								status = EAP_SUCCESS;
+								count = 0;
 								writelog(LOG_INFO, "EAP Success\n");
 								break;
 							case EAP_FAILURE:
 								status = EAP_FAILURE;
 								last[last[0] + 1] = '\0';
-								writelog(LOG_WARNING, "EAP Failure\n");
-								writelog(LOG_WARNING, "%s\n", last + 1);
+								writelog(LOG_INFO, "EAP Failure\n");
+								writelog(LOG_INFO, "%s\n", last + 1);
 								break;
 							default:
-								writelog(LOG_WARNING, "Unknow eapol type: %d\n", eap->code);
+								writelog(LOG_INFO, "Unknow eapol type: %d\n", eap->code);
 								break;
 						}
 						break;
@@ -250,14 +254,15 @@ int eap_auth(){
 						switch(eap->code){
 							case EAP_KEY_RC4:
 								eapol_key_rc4();
+								count = 0;
 								break;
 							default:
-								writelog(LOG_WARNING, "Unknow key type: %d\n", eap->code);
+								writelog(LOG_INFO, "Unknow key type: %d\n", eap->code);
 								break;
 						}
 						break;
 					default:
-						writelog(LOG_WARNING, "Unknow packet type: %d\n", eapol->type);
+						writelog(LOG_INFO, "Unknow packet type: %d\n", eapol->type);
 						break;
 				}
 			}
@@ -269,12 +274,16 @@ int eap_auth(){
 						writelog(LOG_INFO, "Timeout,try to reconnection\n");
 					}
 					eapol_start();
+				}else{
+					if(count++ >= 100){
+						status = EAP_FAILURE;
+					}
 				}
 			}else if(t == 0){
-					status = EAP_FAILURE;
-					if(tag > 0){
-						writelog(LOG_WARNING, "Waiting for link...\n");
-						tag = 0;
+				status = EAP_FAILURE;
+				if(tag > 0){
+					writelog(LOG_INFO, "Waiting for link...\n");
+					tag = 0;
 				}	
 			}
 		}
