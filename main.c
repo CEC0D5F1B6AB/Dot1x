@@ -42,7 +42,7 @@
 
 int usage(const char *progname)
 {
-	fprintf(stderr, "Dot1x 1.1 By Tuber\n\n"
+	do_log("Dot1x 1.2 By Tuber\n\n"
 			"Usage: %s <options>\n"
 			"\n"
 			"Options:\n"
@@ -62,7 +62,7 @@ int main(int argc, char *argv[]){
 	openlog("Dot1x", 0, LOG_AUTH); 
 
 	if(getuid() != 0){
-        fprintf(stderr, "Check Need Root Power.\n");
+        do_log("Check Need Root Power.\n");
         exit(-1);
     }
     
@@ -92,7 +92,7 @@ int main(int argc, char *argv[]){
 	}
 	
 	if(strlen(interface) > IFNAMSIZ){
-		fprintf(stderr, "Error interface.\n");
+		do_log("Error interface\n");
 	}
 	
 	pid_t fpid = 0;
@@ -101,7 +101,7 @@ int main(int argc, char *argv[]){
 	}
 	
 	if (fpid < 0){
-		writelog(LOG_ERR, "fork: %s\n", strerror(errno));
+		do_log("Fork: %s\n", strerror(errno));
 		return(-1);
 	}else if(fpid == 0){
 		eap_auth();

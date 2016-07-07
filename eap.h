@@ -58,7 +58,7 @@ struct key
 };
 #pragma pack()
 
-int sockfd, status, e, count;
+int sockfd, status, e, count, count_aim;
 unsigned char buf[PKT_SIZE], src_addr[6], des_addr[6] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x03};
 struct eth *eth = (struct eth *)buf;
 struct eapol *eapol = (struct eapol *)(buf + sizeof(struct eth));
