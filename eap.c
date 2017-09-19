@@ -18,6 +18,54 @@
 
 #include "eap.h"
 
+void e_stop(int signo){
+	e = 0;
+}
+
+int eap_init(){
+	sockfd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_PAE));
+	if (sockfd < 0){
+		do_log("Socket: %s\n", strerror(errno));
+		return(-1);
+	}
+	//socket
+	struct ifreq ifr;
+	bzero(&ifr, sizeof(struct ifreq));
+	strcpy(ifr.ifr_name, interface);
+	if(ioctl(sockfd, SIOCGIFINDEX, &ifr) < 0){
+		do_log("Ioctl: %s\n", strerror(errno));
+		return(-1);
+	}
+	struct sockaddr_ll addr;
+	bzero(&addr, sizeof(struct sockaddr_ll));
+	addr.sll_family = AF_PACKET;
+	addr.sll_ifindex = ifr.ifr_ifindex;
+	if (bind(sockfd, (struct sockaddr*)&addr, sizeof(struct sockaddr_ll)) < 0){
+		do_log("Bind: %s\n", strerror(errno));
+		return(-1);
+	}
+	//bind
+	struct timeval timeout={TIMEOUT,0};
+	if(setsockopt(sockfd,SOL_SOCKET,SO_RCVTIMEO,&timeout,sizeof(timeout)) !=0){
+		do_log("Setsockopt: %s\n", strerror(errno));
+		return(-1);
+	}
+	//timeout
+	int size = sizeof(struct sockaddr_ll);
+	if (getsockname(sockfd, (struct sockaddr *)&addr, &size) < 0){
+		do_log("Getsockname: %s\n", strerror(errno));
+		return(-1);
+	}
+	memcpy(src_addr, addr.sll_addr, addr.sll_halen);
+	//mac
+	signal(SIGINT, e_stop); 
+	signal(SIGQUIT, e_stop);
+	signal(SIGTERM, e_stop);
+	signal(SIGSTOP, e_stop);
+	//signal
+	return(sockfd);
+}
+
 int send_eth(unsigned short int proto, unsigned short int len){
 	int t = sizeof(struct eth) + len;
 	memcpy(eth->dest, des_addr, 6);
@@ -111,54 +159,6 @@ int eapol_key_rc4(){
 	t = send_eapol(EAPOL_KEY, t);
 	//do_log("EAPOL Response Key RC4\n");//hide the alive signal
 	return(t);
-}
-
-void e_stop(int signo){
-	e = 0;
-}
-
-int eap_init(){
-	sockfd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_PAE));
-	if (sockfd < 0){
-		do_log("Socket: %s\n", strerror(errno));
-		return(-1);
-	}
-	//socket
-	struct ifreq ifr;
-	bzero(&ifr, sizeof(struct ifreq));
-	strcpy(ifr.ifr_name, interface);
-	if(ioctl(sockfd, SIOCGIFINDEX, &ifr) < 0){
-		do_log("Ioctl: %s\n", strerror(errno));
-		return(-1);
-	}
-	struct sockaddr_ll addr;
-	bzero(&addr, sizeof(struct sockaddr_ll));
-	addr.sll_family = AF_PACKET;
-	addr.sll_ifindex = ifr.ifr_ifindex;
-	if (bind(sockfd, (struct sockaddr*)&addr, sizeof(struct sockaddr_ll)) < 0){
-		do_log("Bind: %s\n", strerror(errno));
-		return(-1);
-	}
-	//bind
-	struct timeval timeout={TIMEOUT,0};
-	if(setsockopt(sockfd,SOL_SOCKET,SO_RCVTIMEO,&timeout,sizeof(timeout)) !=0){
-		do_log("Setsockopt: %s\n", strerror(errno));
-		return(-1);
-	}
-	//timeout
-	int size = sizeof(struct sockaddr_ll);
-	if (getsockname(sockfd, (struct sockaddr *)&addr, &size) < 0){
-		do_log("Getsockname: %s\n", strerror(errno));
-		return(-1);
-	}
-	memcpy(src_addr, addr.sll_addr, addr.sll_halen);
-	//mac
-	signal(SIGINT, e_stop); 
-	signal(SIGQUIT, e_stop);
-	signal(SIGTERM, e_stop);
-	signal(SIGSTOP, e_stop);
-	//signal
-	return(sockfd);
 }
 
 int get_netlink_status(){
