@@ -11,7 +11,10 @@ void do_log(char * fmt, ...){
 	va_list argp;
 	va_start(argp, fmt);
 	va_end(argp);
-	vfprintf(stdout, fmt, argp);
-	vsyslog(LOG_INFO, fmt, argp);
+	char buf[1024];//max 1k
+	vsnprintf(buf, sizeof(buf), fmt, argp);
+	Gb2312ToUtf8(buf, sizeof(buf));//the zte 802.1x using gb2312,so translate to utf-8
+	fprintf(stdout, buf);
+	syslog(LOG_INFO, buf);
 	return;
 }

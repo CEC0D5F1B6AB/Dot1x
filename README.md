@@ -1,8 +1,8 @@
 # Dot1x
 Zte 802.1x
 
-使用RAW SOCKET的802.1x中兴客户端
+Using RAW SOCKET implement 802.1x
 
-SALT=142052
+SALT=zte142052
 
-BY Tuber
+powered by Tuber

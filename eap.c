@@ -1,26 +1,3 @@
-////////////////////////////////////////////////////////////////////
-//							_ooOoo_								  //
-//						   o8888888o							  //	
-//						   88" . "88							  //	
-//						   (| ^_^ |)							  //	
-//						   O\  =  /O							  //
-//						____/`---'\____							  //						
-//					  .'  \\|     |//  `.						  //
-//					 /  \\|||  :  |||//  \						  //	
-//				    /  _||||| -:- |||||-  \						  //
-//				    |   | \\\  -  /// |   |						  //
-//					| \_|  ''\---/''  |   |						  //		
-//					\  .-\__  `-`  ___/-. /						  //		
-//				  ___`. .'  /--.--\  `. . ___					  //	
-//				."" '<  `.___\_<|>_/___.'  >'"".				  //
-//			  | | :  `- \`.;`\ _ /`;.`/ - ` : | |				  //	
-//			  \  \ `-.   \_ __\ /__ _/   .-` /  /                 //
-//		========`-.____`-.___\_____/___.-`____.-'========		  //	
-//				             `=---='                              //
-//		^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^        //
-//         佛祖保佑       永无BUG		永不修改				  //
-////////////////////////////////////////////////////////////////////
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -120,7 +97,7 @@ int eapol_key_rc4(){
 	int t;
 	unsigned char enckey[]={0x02,0x0E,0x05,0x04,0x66,0x40,0x19,0x75,0x06,0x06,0x00,0x16,0xD3,0xF3,0xAC,0x02};
 	unsigned char wholekey[20];
-	do_log("EAPOL Request Key RC4\n");
+	//do_log("EAPOL Request Key RC4\n");//hide the alive signal
 	t = sizeof(struct key) + ntohs(key->keylen) - 16;
 	//key
 	memcpy(wholekey, key->keyiv, 16);
@@ -132,7 +109,7 @@ int eapol_key_rc4(){
 	hmac_md5((unsigned char *)eapol, sizeof(struct eapol) + t, &key->keyindex, 1, wholekey);
 	memcpy(key->keysignature, wholekey, 16);
 	t = send_eapol(EAPOL_KEY, t);
-	do_log("EAPOL Response Key RC4\n");
+	//do_log("EAPOL Response Key RC4\n");//hide the alive signal
 	return(t);
 }
 
@@ -193,7 +170,7 @@ int get_netlink_status(){
 	strcpy(ifr.ifr_name, interface);
 	ifr.ifr_data = (char *)&edata;
 	if(ioctl(sockfd, SIOCETHTOOL, &ifr) < 0){
-		do_log("Ioctl: %s\n", strerror(errno));
+		do_log("ioctl: %s\n", strerror(errno));
 		return(0);
 	}
 	return(edata.data);
@@ -207,9 +184,9 @@ int eap_auth(){
 	
 	e = 1;
 	int t, tag;
-	pid_t fpid = 0;
 	
-	count = count_aim = 0;
+	count = 0;
+	count_aim = 0;
 	
 	while(e > 0){
 		t = recv(sockfd, buf, sizeof(buf), 0);
@@ -218,13 +195,15 @@ int eap_auth(){
 				if(count == 1){
 					do_log("Sleep %d second to retry\n", count_aim);
 				}
-				if(count++ < count_aim){
-					count_aim += 10;
+				if(count < count_aim){
+                    count++;
+                    status = EAPOL_START;
+					continue;
+				}else{
+                    count_aim += 10;
 					if(count_aim > 300){
 						count_aim = 300;
 					}
-					continue;
-				}else{
 					count = 0;
 				}
 			}
@@ -242,7 +221,7 @@ int eap_auth(){
 										eap_identity();
 										break;
 									case EAP_TYPE_NOTIFICATION:
-										do_log("EAP Request Notification\n%s\n", last);
+										do_log("Notice: %s\n", last);
 										break;
 									case EAP_TYPE_MD5:
 										eap_md5();
@@ -260,9 +239,13 @@ int eap_auth(){
 							case EAP_FAILURE:
 								status = EAP_FAILURE;
 								count++;
-								last[last[0] + 1] = '\0';
 								do_log("EAP Failure\n");
-								do_log("%s\n", last + 1);
+								/*
+								if(last[0] != 0){
+                                    last[last[0] + 1] = '\0';
+                                    do_log("%s\n", last + 1);
+                                }
+								*///drop the old method
 								break;
 							default:
 								do_log("Unknow eapol type: %d\n", eap->code);
@@ -290,6 +273,7 @@ int eap_auth(){
 				if(status != EAP_SUCCESS){
 					if(status == EAP_FAILURE){
 						do_log("Timeout,try to reconnection\n");
+						count++;
 					}
 					eapol_start();
 				}
